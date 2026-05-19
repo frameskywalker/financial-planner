@@ -1443,29 +1443,27 @@ function App() {
 
   return (
     <div style={s.app}>
-      {/* ── RESPONSIVE CSS ── */}
       <style>{`
         .fp-sidebar-full{display:flex!important}
-        .fp-sidebar-icon{display:none!important}
+        .fp-hamburger{display:none!important}
         .fp-drawer-overlay{display:none!important}
         @media(max-width:1024px){
           .fp-sidebar-full{display:none!important}
-          .fp-sidebar-icon{display:flex!important;width:48px;background:#FAF8F5;border-right:0.5px solid rgba(0,0,0,0.1);flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0;z-index:10}
+          .fp-hamburger{display:flex!important}
           .fp-drawer-overlay{position:fixed;inset:0;z-index:100;display:flex!important}
-          .fp-topbar-title{display:none}
-          .fp-page-title{font-size:26px!important}
-          .fp-page-sub{font-size:12px!important}
         }
-        .fp-icon-btn{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'Kanit',sans-serif;font-size:11px;font-weight:600;border:none;background:transparent;flex-direction:column;gap:1px}
-        .fp-icon-btn:hover{background:rgba(0,0,0,0.06)}
-        .fp-icon-btn.active{background:#1E2B2E;color:white}
-        .fp-icon-btn.done{background:#E2F5EE;color:#0E6E55}
-        .fp-icon-btn span{font-size:9px;opacity:.6}
       `}</style>
 
       {/* ── TOPBAR ── */}
       <div style={s.topbar}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {/* Hamburger — iPad only */}
+          <button className="fp-hamburger" onClick={()=>setDrawerOpen(v=>!v)}
+            style={{background:"none",border:"none",cursor:"pointer",padding:"4px",display:"none",flexDirection:"column",gap:4,marginRight:4}}>
+            <div style={{width:18,height:2,background:"white",borderRadius:1}}/>
+            <div style={{width:18,height:2,background:"white",borderRadius:1}}/>
+            <div style={{width:18,height:2,background:"white",borderRadius:1}}/>
+          </button>
           <div style={s.logoBox}><div style={{width:0,height:0,borderLeft:"6px solid transparent",borderRight:"6px solid transparent",borderBottom:"11px solid "+C.navy}}/></div>
           <div className="fp-topbar-title">
             <div style={{fontSize:13,fontWeight:600,color:"white",letterSpacing:".02em",lineHeight:1.2}}>Financial Planning Pyramid</div>
@@ -1479,7 +1477,7 @@ function App() {
       {/* ── BODY ── */}
       <div style={s.body}>
 
-        {/* FULL SIDEBAR — desktop only */}
+        {/* FULL SIDEBAR — desktop, hidden on iPad */}
         <div className="fp-sidebar-full" style={{...s.sidebar}}>
           <div style={s.pyrWrap}>
             <div style={{fontSize:9,fontWeight:600,letterSpacing:".1em",color:"#8A9A8A",textTransform:"uppercase",marginBottom:1}}>Financial Planning</div>
@@ -1499,26 +1497,6 @@ function App() {
               </div>;
             })}
           </div>
-        </div>
-
-        {/* ICON STRIP — iPad only */}
-        <div className="fp-sidebar-icon">
-          {/* Hamburger to open drawer */}
-          <button className="fp-icon-btn" onClick={()=>setDrawerOpen(true)}
-            style={{marginBottom:4,color:"#1A1A1A"}}>
-            <div style={{width:16,height:1.5,background:"currentColor",borderRadius:1,margin:"1.5px 0"}}/>
-            <div style={{width:16,height:1.5,background:"currentColor",borderRadius:1,margin:"1.5px 0"}}/>
-            <div style={{width:16,height:1.5,background:"currentColor",borderRadius:1,margin:"1.5px 0"}}/>
-          </button>
-          <div style={{width:28,height:"0.5px",background:"rgba(0,0,0,0.1)",margin:"2px 0 6px"}}/>
-          {STEPS.map((step,i)=>{
-            const isActive=i===cur,isDone=i<cur;
-            return <button key={i} onClick={()=>jumpTo(i)}
-              className={`fp-icon-btn${isActive?" active":isDone?" done":""}`}>
-              <div style={{fontSize:11,fontWeight:700}}>{isDone?"✓":(i+1)}</div>
-              <span>{ICONS[i]}</span>
-            </button>;
-          })}
         </div>
 
         {/* DRAWER OVERLAY — iPad, when open */}
