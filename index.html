@@ -1431,18 +1431,43 @@ const PAGES = [
 function App() {
   const [cur,setCur]=useState(0);
   const [D,setD]=useState(initState);
+  const [drawerOpen,setDrawerOpen]=useState(false);
   const goNext=()=>{if(cur===8){openPDF(D);return;}setCur(c=>Math.min(8,c+1));};
   const goBack=()=>setCur(c=>Math.max(0,c-1));
-  const jumpTo=useCallback((i)=>setCur(i),[]);
+  const jumpTo=useCallback((i)=>{setCur(i);setDrawerOpen(false);},[]);
   const PageContent=PAGES[cur].content;
   const PagePanel=PAGES[cur].panel;
+
+  // Icon strip items: step number + thai initial
+  const ICONS=["พ","ข","ส","ค","เ","ก","ร","ท","สร"];
+
   return (
     <div style={s.app}>
-      {/* TOPBAR */}
+      {/* ── RESPONSIVE CSS ── */}
+      <style>{`
+        .fp-sidebar-full{display:flex!important}
+        .fp-sidebar-icon{display:none!important}
+        .fp-drawer-overlay{display:none!important}
+        @media(max-width:1024px){
+          .fp-sidebar-full{display:none!important}
+          .fp-sidebar-icon{display:flex!important;width:48px;background:#FAF8F5;border-right:0.5px solid rgba(0,0,0,0.1);flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0;z-index:10}
+          .fp-drawer-overlay{position:fixed;inset:0;z-index:100;display:flex!important}
+          .fp-topbar-title{display:none}
+          .fp-page-title{font-size:26px!important}
+          .fp-page-sub{font-size:12px!important}
+        }
+        .fp-icon-btn{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'Kanit',sans-serif;font-size:11px;font-weight:600;border:none;background:transparent;flex-direction:column;gap:1px}
+        .fp-icon-btn:hover{background:rgba(0,0,0,0.06)}
+        .fp-icon-btn.active{background:#1E2B2E;color:white}
+        .fp-icon-btn.done{background:#E2F5EE;color:#0E6E55}
+        .fp-icon-btn span{font-size:9px;opacity:.6}
+      `}</style>
+
+      {/* ── TOPBAR ── */}
       <div style={s.topbar}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={s.logoBox}><div style={{width:0,height:0,borderLeft:"6px solid transparent",borderRight:"6px solid transparent",borderBottom:"11px solid "+C.navy}}/></div>
-          <div>
+          <div className="fp-topbar-title">
             <div style={{fontSize:13,fontWeight:600,color:"white",letterSpacing:".02em",lineHeight:1.2}}>Financial Planning Pyramid</div>
             <div style={{fontSize:9,color:"rgba(255,255,255,.4)",letterSpacing:".09em",textTransform:"uppercase"}}>Co-View Worksheet</div>
           </div>
@@ -1450,10 +1475,12 @@ function App() {
         <div style={{fontSize:12,color:"rgba(255,255,255,.45)"}}>Step <span style={{color:C.gold2,fontWeight:600}}>{cur+1}</span> / 9</div>
       </div>
       <div style={s.progStrip}><div style={{height:"100%",background:C.gold,width:((cur+1)/9*100)+"%",transition:"width .4s ease"}}/></div>
-      {/* BODY */}
+
+      {/* ── BODY ── */}
       <div style={s.body}>
-        {/* SIDEBAR */}
-        <div style={s.sidebar}>
+
+        {/* FULL SIDEBAR — desktop only */}
+        <div className="fp-sidebar-full" style={{...s.sidebar}}>
           <div style={s.pyrWrap}>
             <div style={{fontSize:9,fontWeight:600,letterSpacing:".1em",color:"#8A9A8A",textTransform:"uppercase",marginBottom:1}}>Financial Planning</div>
             <div style={{fontSize:15,fontWeight:700,color:"#1A1A1A",marginBottom:".5rem"}}>พีระมิดการเงิน</div>
@@ -1473,7 +1500,52 @@ function App() {
             })}
           </div>
         </div>
-        {/* MAIN */}
+
+        {/* ICON STRIP — iPad only */}
+        <div className="fp-sidebar-icon">
+          {/* Hamburger to open drawer */}
+          <button className="fp-icon-btn" onClick={()=>setDrawerOpen(true)}
+            style={{marginBottom:4,color:"#1A1A1A"}}>
+            <div style={{width:16,height:1.5,background:"currentColor",borderRadius:1,margin:"1.5px 0"}}/>
+            <div style={{width:16,height:1.5,background:"currentColor",borderRadius:1,margin:"1.5px 0"}}/>
+            <div style={{width:16,height:1.5,background:"currentColor",borderRadius:1,margin:"1.5px 0"}}/>
+          </button>
+          <div style={{width:28,height:"0.5px",background:"rgba(0,0,0,0.1)",margin:"2px 0 6px"}}/>
+          {STEPS.map((step,i)=>{
+            const isActive=i===cur,isDone=i<cur;
+            return <button key={i} onClick={()=>jumpTo(i)}
+              className={`fp-icon-btn${isActive?" active":isDone?" done":""}`}>
+              <div style={{fontSize:11,fontWeight:700}}>{isDone?"✓":(i+1)}</div>
+              <span>{ICONS[i]}</span>
+            </button>;
+          })}
+        </div>
+
+        {/* DRAWER OVERLAY — iPad, when open */}
+        {drawerOpen&&<div className="fp-drawer-overlay" onClick={()=>setDrawerOpen(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{width:260,background:"#FAF8F5",height:"100%",display:"flex",flexDirection:"column",boxShadow:"4px 0 24px rgba(0,0,0,0.18)",overflow:"hidden"}}>
+            <div style={{padding:"1rem",borderBottom:"0.5px solid rgba(0,0,0,0.08)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#1A1A1A"}}>ขั้นตอน</div>
+              <button onClick={()=>setDrawerOpen(false)} style={{border:"none",background:"rgba(0,0,0,0.07)",borderRadius:6,width:28,height:28,cursor:"pointer",fontSize:14,color:"#1A1A1A"}}>✕</button>
+            </div>
+            <div style={{padding:".5rem .625rem",overflowY:"auto",flex:1}}>
+              <SidebarPyramid step={cur}/>
+              <div style={{height:"0.5px",background:"rgba(0,0,0,0.08)",margin:".5rem 0"}}/>
+              {STEPS.map((step,i)=>{
+                const isActive=i===cur,isDone=i<cur;
+                return <div key={i} onClick={()=>jumpTo(i)} style={{...s.stepItem,background:isActive?"#1E2B2E":"transparent"}}>
+                  <div style={{...s.stepNum,background:isActive?"#D4941A":isDone?"#E2F5EE":"rgba(0,0,0,0.08)",color:isActive?"#1A1A1A":isDone?"#0E6E55":"#8A9A8A"}}>{isDone?"✓":(i+1)}</div>
+                  <div style={{display:"flex",flexDirection:"column",lineHeight:1.3}}>
+                    <span style={{fontSize:13,fontWeight:isActive?600:400,color:isActive?"white":"#1A1A1A"}}>{step.n}</span>
+                    <span style={{fontSize:11,color:isActive?"rgba(255,255,255,.5)":"#8A9A8A"}}>{step.e}</span>
+                  </div>
+                </div>;
+              })}
+            </div>
+          </div>
+        </div>}
+
+        {/* MAIN CONTENT */}
         <div style={s.mainWrap}>
           <div style={s.scrollArea}>
             <div style={{...s.contentCol}}>
@@ -1483,17 +1555,17 @@ function App() {
               <PagePanel D={D}/>
             </div>}
           </div>
-          {/* BOTTOM NAV */}
           <div style={s.bottomNav}>
             <button onClick={goBack} style={{...s.navBtn,visibility:cur===0?"hidden":"visible"}}>‹ ย้อนกลับ</button>
             <span style={{fontSize:13,color:"#8A9A8A"}}>{cur+1} / 9 · {STEPS[cur].n}</span>
-            <button onClick={goNext} style={{...s.navBtnPrimary}}>{cur===8?"🖨 Export PDF":"ถัดไป ›"}</button>
+            <button onClick={goNext} style={s.navBtnPrimary}>{cur===8?"🖨 Export PDF":"ถัดไป ›"}</button>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
 </script>
