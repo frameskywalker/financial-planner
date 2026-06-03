@@ -1285,8 +1285,8 @@ function buildPDF(D) {
 
   const css=`*{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Kanit',sans-serif;background:#2A2A2A;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:2rem}
-.pl{color:#AAA;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;align-self:flex-start;margin-left:calc(50% - 300px)}
-.a4{background:#EDE8E0;width:600px;min-height:848px;padding:2.25rem 2.5rem;position:relative;border-radius:4px;box-shadow:0 8px 32px rgba(0,0,0,0.4);display:flex;flex-direction:column}
+.pl{color:#AAA;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;align-self:flex-start;width:210mm}
+.a4{background:#EDE8E0;width:210mm;min-height:297mm;padding:16mm 18mm;position:relative;border-radius:4px;box-shadow:0 8px 32px rgba(0,0,0,0.4);display:flex;flex-direction:column}
 .ft{margin-top:auto;padding-top:.875rem;border-top:0.5px solid rgba(0,0,0,0.1);display:flex;justify-content:space-between;font-size:9px;color:#8A9A8A}
 .pn{position:absolute;top:1.25rem;right:2.5rem;font-size:9px;color:#8A9A8A;background:rgba(0,0,0,0.07);padding:2px 9px;border-radius:12px}
 .lr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem}
@@ -1325,7 +1325,7 @@ body{font-family:'Kanit',sans-serif;background:#2A2A2A;padding:2rem;display:flex
 .mn{background:rgba(0,0,0,0.045);border-radius:7px;padding:.5rem .75rem;margin-top:.5rem}
 .bb{height:5px;background:rgba(0,0,0,0.1);border-radius:3px;overflow:hidden;margin-top:3px}
 .bf{height:100%;border-radius:3px}
-@media print{body{background:white;padding:0}.a4{box-shadow:none;border-radius:0;page-break-after:always;min-height:100vh}.a4:last-child{page-break-after:avoid}.pl{display:none}@page{size:A4;margin:0}}`;
+@media print{body{background:white;padding:0;gap:0}.a4{box-shadow:none;border-radius:0;page-break-after:always;width:210mm;min-height:297mm;padding:16mm 18mm}.a4:last-child{page-break-after:avoid}.pl{display:none}@page{size:A4;margin:0}}`;
 
   const prot=[[`ทุนประกัน`,D.lifeIns.sum,1e6],[`ค่าห้อง`,D.lifeIns.room,5000],[`ค่ารักษา`,D.lifeIns.treat,3e5],[`โรคร้ายแรง`,D.lifeIns.critical,5e5],[`อุบัติเหตุ`,D.nonLife.acc,2e5],[`ค่าชดเชย`,D.nonLife.comp,1000]];
   const statusBadge=(ok,warn)=>ok?`<span class="sb ok">สมบูรณ์ · OK</span>`:warn?`<span class="sb wn">ควรเพิ่ม · Review</span>`:`<span class="sb gp">ขาดอีก · Gap</span>`;
