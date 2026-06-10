@@ -40,6 +40,9 @@ const auth = firebase.auth();
 const db   = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
+// ─── DEV MODE: เปิด ?dev=1 ใน URL เพื่อข้าม Google login ──────────────
+const DEV_MODE = new URLSearchParams(window.location.search).get("dev") === "1";
+
 
 
 // ─── THEME ─────────────────────────────────────────────────────────────
@@ -898,7 +901,121 @@ function Page6({D,set,step}) {
         <Input value={D.savings} onChange={v=>set(p=>({...p,savings:v}))} suffix="฿" style={{background:"rgba(255,255,255,.1)",color:"white",borderRadius:10,textAlign:"right"}}/>
       </div>
     </div>
+
+    {/* ── Tax card — full width ── */}
+    <TaxCard annualIncome={ti*12}/>
   </div>;
+}
+
+// ─── THAI PROGRESSIVE TAX ───────────────────────────────────────────────
+function calcThaiTax(annualIncome) {
+  // No deductions — raw income vs brackets
+  const brackets = [
+    { min:0,       max:150000,  rate:0   },
+    { min:150000,  max:300000,  rate:0.05 },
+    { min:300000,  max:500000,  rate:0.10 },
+    { min:500000,  max:750000,  rate:0.15 },
+    { min:750000,  max:1000000, rate:0.20 },
+    { min:1000000, max:2000000, rate:0.25 },
+    { min:2000000, max:5000000, rate:0.30 },
+    { min:5000000, max:Infinity,rate:0.35 },
+  ];
+
+  let tax = 0;
+  let topRate = 0;
+  for (const b of brackets) {
+    if (annualIncome <= b.min) break;
+    const portion = Math.min(annualIncome, b.max) - b.min;
+    tax += portion * b.rate;
+    if (b.rate > 0 && annualIncome > b.min) topRate = b.rate;
+  }
+  return { tax, topRate, taxable: annualIncome };
+}
+
+function TaxCard({ annualIncome }) {
+  const { tax, topRate, taxable } = calcThaiTax(annualIncome || 0);
+  const taxPerMonth = tax / 12;
+  const effectiveRate = annualIncome > 0 ? (tax / annualIncome) * 100 : 0;
+
+  const bracketLabel = topRate === 0 ? "ไม่ถึงเกณฑ์เสียภาษี" :
+    topRate === 0.05 ? "5%" : topRate === 0.10 ? "10%" :
+    topRate === 0.15 ? "15%" : topRate === 0.20 ? "20%" :
+    topRate === 0.25 ? "25%" : topRate === 0.30 ? "30%" : "35%";
+
+  const bracketColor = topRate === 0 ? "#10B981" :
+    topRate <= 0.10 ? "#3B82F6" :
+    topRate <= 0.20 ? "#F59E0B" :
+    topRate <= 0.25 ? "#F97316" : "#EF4444";
+
+  return (
+    <div style={{background:"white",borderRadius:16,padding:"16px 18px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:9}}>
+          <div style={{width:32,height:32,borderRadius:10,background:"#FEF3C7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🧾</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:"#111827"}}>ภาษีเงินได้บุคคลธรรมดา</div>
+            <div style={{fontSize:11,color:"#9CA3AF"}}>คำนวณจากรายรับต่อปี · อัตราขั้นบันได</div>
+          </div>
+        </div>
+        {/* Bracket badge */}
+        <div style={{display:"flex",alignItems:"center",gap:6,background:bracketColor+"18",border:`1px solid ${bracketColor}40`,borderRadius:20,padding:"5px 14px"}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:bracketColor,flexShrink:0}}/>
+          <span style={{fontSize:12,fontWeight:700,color:bracketColor}}>เกณฑ์ภาษี {bracketLabel}</span>
+        </div>
+      </div>
+
+      {/* 3 KPI boxes */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+        <div style={{background:"#F9FAFB",borderRadius:12,padding:"12px 14px"}}>
+          <div style={{fontSize:10,color:"#6B7280",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>รายได้ต่อปี</div>
+          <div style={{fontSize:20,fontWeight:700,color:"#111827"}}>{fmt(taxable)}</div>
+          <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>฿ / ปี</div>
+        </div>
+        <div style={{background: tax>0?"#FFF7ED":"#F0FDF4",borderRadius:12,padding:"12px 14px",border:`1px solid ${tax>0?"#FED7AA":"#BBF7D0"}`}}>
+          <div style={{fontSize:10,color:"#6B7280",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>ภาษีที่ต้องจ่าย/ปี</div>
+          <div style={{fontSize:20,fontWeight:700,color:tax>0?"#EA580C":"#16A34A"}}>{fmt(tax)}</div>
+          <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>฿ / ปี</div>
+        </div>
+        <div style={{background:"#F9FAFB",borderRadius:12,padding:"12px 14px"}}>
+          <div style={{fontSize:10,color:"#6B7280",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>เฉลี่ยต่อเดือน</div>
+          <div style={{fontSize:20,fontWeight:700,color:"#111827"}}>{fmt(taxPerMonth)}</div>
+          <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>฿ / เดือน</div>
+        </div>
+      </div>
+
+      {/* Bracket breakdown mini visual */}
+      <div style={{background:"#F9FAFB",borderRadius:10,padding:"10px 14px"}}>
+        <div style={{fontSize:10,color:"#6B7280",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:8}}>อัตราภาษีขั้นบันได (เงินได้สุทธิ)</div>
+        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+          {[
+            {range:"0–150K",rate:"ยกเว้น",active:taxable>0,color:"#10B981"},
+            {range:"150–300K",rate:"5%",active:taxable>150000,color:"#3B82F6"},
+            {range:"300–500K",rate:"10%",active:taxable>300000,color:"#60A5FA"},
+            {range:"500–750K",rate:"15%",active:taxable>500000,color:"#F59E0B"},
+            {range:"750K–1M",rate:"20%",active:taxable>750000,color:"#F97316"},
+            {range:"1–2M",rate:"25%",active:taxable>1000000,color:"#EF4444"},
+            {range:"2–5M",rate:"30%",active:taxable>2000000,color:"#DC2626"},
+            {range:">5M",rate:"35%",active:taxable>5000000,color:"#991B1B"},
+          ].map(({range,rate,active,color})=>(
+            <div key={range} style={{
+              borderRadius:8,padding:"4px 8px",fontSize:10,fontWeight:600,
+              background:active?color+"20":"#EEEFF0",
+              color:active?color:"#C1C8D0",
+              border:`1px solid ${active?color+"40":"transparent"}`,
+              display:"flex",flexDirection:"column",alignItems:"center",gap:1
+            }}>
+              <span style={{fontWeight:700,fontSize:11}}>{rate}</span>
+              <span style={{fontWeight:400,fontSize:9,opacity:.8}}>{range}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:8,fontSize:11,color:"#9CA3AF"}}>
+          * คำนวณจากรายรับรวมต่อปี ยังไม่รวมค่าลดหย่อน · อัตราภาษีที่แท้จริง {effectiveRate.toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Panel6() { return null; }
@@ -1736,6 +1853,12 @@ function App() {
 
   // ── Auth listener ──
   useEffect(()=>{
+    if(DEV_MODE){
+      setUser({displayName:"Dev User",email:"dev@local"});
+      setAuthLoading(false);
+      setScreen("clients");
+      return;
+    }
     const unsub=auth.onAuthStateChanged(u=>{
       setUser(u);
       setAuthLoading(false);
