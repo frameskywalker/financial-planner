@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -32,7 +32,7 @@ input[type=number]{-moz-appearance:textfield}
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
+<script type="text/plain" id="app-script">
 const { useState, useCallback, useEffect, useRef } = React;
 
 // ─── FIREBASE ────────────────────────────────────────────────────────────
@@ -2621,6 +2621,17 @@ function App() {
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+<script>
+(function(){
+  var src = document.getElementById("app-script").textContent;
+  var out = Babel.transform(src, {
+    presets: [["react", { runtime: "classic" }]]
+  }).code;
+  var s = document.createElement("script");
+  s.textContent = out;
+  document.body.appendChild(s);
+})();
 </script>
 </body>
 </html>
