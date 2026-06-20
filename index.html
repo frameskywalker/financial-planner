@@ -1970,6 +1970,20 @@ function AuthScreen({onLogin}) {
   );
 }
 
+// ─── DENIED SCREEN (advisor not on whitelist) ────────────────────────────
+function DeniedScreen({onBack}) {
+  return (
+    <div style={{height:"100dvh",minHeight:"-webkit-fill-available",background:"#EDE8E0",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Kanit',sans-serif",padding:"2rem"}}>
+      <div style={{background:"#FAF8F5",borderRadius:20,padding:"2.5rem 2rem",boxShadow:"0 8px 40px rgba(0,0,0,0.10)",width:"100%",maxWidth:380,textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:".75rem"}}>🚫</div>
+        <div style={{fontSize:18,fontWeight:700,color:C.navy,marginBottom:6}}>ไม่ได้รับอนุญาตให้ใช้งาน</div>
+        <div style={{fontSize:13,color:C.text3,marginBottom:"1.5rem",lineHeight:1.6}}>บัญชี Google ของคุณไม่อยู่ในรายชื่อ Advisor ที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบเพื่อขอสิทธิ์เข้าใช้งาน</div>
+        <button onClick={onBack} style={{width:"100%",padding:"12px",borderRadius:12,border:`1px solid ${C.border2}`,background:"white",fontFamily:"'Kanit',sans-serif",fontSize:14,fontWeight:500,color:C.navy,cursor:"pointer"}}>กลับไปหน้าเข้าสู่ระบบ</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── CLIENT LIST SCREEN ───────────────────────────────────────────────────
 function ClientListScreen({user,onOpen,onNew,onLogout}) {
   const [clients,setClients]=useState([]);
@@ -2446,7 +2460,8 @@ function App() {
   const [shareUrl,setShareUrl]=useState("");
   const [showShareToast,setShowShareToast]=useState(false);
 
-  // ── Auth listener ──
+  // ── Auth listener (with advisor whitelist check) ──
+  const deniedRef=useRef(false);
   useEffect(()=>{
     if(DEV_MODE){
       setUser({displayName:"Dev User",email:"dev@local"});
@@ -2454,11 +2469,32 @@ function App() {
       setScreen("clients");
       return;
     }
-    const unsub=auth.onAuthStateChanged(u=>{
-      setUser(u);
-      setAuthLoading(false);
-      if(u) setScreen("clients");
-      else setScreen("auth");
+    const unsub=auth.onAuthStateChanged(async u=>{
+      if(!u){
+        setUser(null);
+        setAuthLoading(false);
+        if(deniedRef.current){deniedRef.current=false;return;} // keep "denied" screen, don't bounce to "auth"
+        setScreen("auth");
+        return;
+      }
+      const email=(u.email||"").trim().toLowerCase();
+      try{
+        const wl=await db.collection("approvedAdvisors").doc(email).get();
+        if(!wl.exists){
+          deniedRef.current=true;
+          setScreen("denied");
+          await auth.signOut();
+          return;
+        }
+        setUser(u);
+        setAuthLoading(false);
+        setScreen("clients");
+      }catch(e){
+        // Whitelist check failed (rules/network) — fail closed, not open.
+        deniedRef.current=true;
+        setScreen("denied");
+        await auth.signOut();
+      }
     });
     return ()=>unsub();
   },[]);
@@ -2539,6 +2575,7 @@ function App() {
   if(SHARE_MODE) return <ShareViewScreen/>;
   if(authLoading) return <div style={{height:"100dvh",display:"flex",alignItems:"center",justifyContent:"center",background:"#EDE8E0",fontFamily:"'Kanit',sans-serif",color:C.text3,fontSize:14}}>กำลังโหลด...</div>;
   if(screen==="auth") return <AuthScreen onLogin={()=>{}}/>;
+  if(screen==="denied") return <DeniedScreen onBack={()=>setScreen("auth")}/>;
   if(screen==="clients") return <ClientListScreen user={user} onOpen={openClient} onNew={newClient} onLogout={logout}/>;
 
   // ── Planner screen ──
