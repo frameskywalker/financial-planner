@@ -1697,14 +1697,66 @@ function ShareViewScreen() {
   const [error,setError]=useState("");
   const [cfOpen,setCfOpen]=useState(false);
 
+  // ── Viewer identity (must match client_info.email) ──
+  const [viewer,setViewer]=useState(null);
+  const [authChecked,setAuthChecked]=useState(false);
+  const [loggingIn,setLoggingIn]=useState(false);
+  const [denied,setDenied]=useState(false);
+
+  // ── Listen for the viewer's Google login (re-uses the app's auth instance) ──
   useEffect(()=>{
+    if(DEV_MODE){setViewer({email:"dev@local"});setAuthChecked(true);return;}
+    const unsub=auth.onAuthStateChanged(u=>{setViewer(u);setAuthChecked(true);});
+    return ()=>unsub();
+  },[]);
+
+  const loginAsClient=async()=>{
+    setLoggingIn(true);
+    try{await auth.signInWithPopup(googleProvider);}
+    catch(e){setLoggingIn(false);}
+  };
+
+  // ── Fetch the client doc only once we know who the viewer is ──
+  useEffect(()=>{
+    if(!authChecked) return;
+    if(!viewer){setLoading(false);return;} // waiting for sign-in
     if(!SHARE_UID||!SHARE_CID){setError("Link ไม่ถูกต้อง");setLoading(false);return;}
+    setLoading(true);
     db.collection("advisors").doc(SHARE_UID).collection("clients").doc(SHARE_CID).get()
       .then(doc=>{
         if(!doc.exists){setError("ไม่พบข้อมูล หรือ Link หมดอายุ");setLoading(false);return;}
-        setD({id:doc.id,...doc.data()});setLoading(false);
-      }).catch(()=>{setError("ไม่สามารถโหลดข้อมูลได้");setLoading(false);});
-  },[]);
+        const data={id:doc.id,...doc.data()};
+        const clientEmail=(data.email||"").trim().toLowerCase();
+        const viewerEmail=(viewer.email||"").trim().toLowerCase();
+        if(!DEV_MODE && (!clientEmail||clientEmail!==viewerEmail)){
+          setDenied(true);setLoading(false);return;
+        }
+        setD(data);setLoading(false);
+      }).catch(()=>{setError("ไม่สามารถโหลดข้อมูลได้ — อีเมลของคุณอาจไม่ตรงกับที่ Advisor บันทึกไว้");setLoading(false);});
+  },[authChecked,viewer]);
+
+  // ── Gate 1: not signed in yet → ask viewer to sign in with their email ──
+  if(authChecked && !viewer && !DEV_MODE) return <div style={{minHeight:"100dvh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F0EDE6",fontFamily:"'Kanit',sans-serif",padding:"2rem"}}>
+    <div style={{background:"#FAF8F5",borderRadius:20,padding:"2.5rem 2rem",boxShadow:"0 8px 40px rgba(0,0,0,0.10)",width:"100%",maxWidth:380,textAlign:"center"}}>
+      <div style={{width:52,height:52,background:"#0D2B4E",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 1.25rem"}}>
+        <div style={{width:28,height:28,background:"#B87A14",borderRadius:7}}/>
+      </div>
+      <div style={{fontSize:18,fontWeight:700,color:"#0D2B4E",marginBottom:6}}>แผนการเงินของคุณ</div>
+      <div style={{fontSize:13,color:"#6A85A8",marginBottom:"1.5rem",lineHeight:1.6}}>กรุณาเข้าสู่ระบบด้วย Gmail ที่ตรงกับอีเมลที่ Advisor บันทึกไว้ให้คุณ เพื่อดูแผนการเงิน</div>
+      <button onClick={loginAsClient} disabled={loggingIn} style={{width:"100%",padding:"13px",borderRadius:12,border:"1px solid rgba(13,43,78,0.16)",background:"white",fontFamily:"'Kanit',sans-serif",fontSize:15,fontWeight:500,color:"#0D2B4E",cursor:loggingIn?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:"0 1px 4px rgba(0,0,0,0.08)",opacity:loggingIn?0.7:1}}>
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-8 19.6-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4c-7.7 0-14.3 4.5-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5L31.1 33.6C29.3 34.8 26.8 36 24 36c-5.2 0-9.6-3.5-11.2-8.2l-6.6 5.1C9.8 39.6 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4-4 5.3l6.3 5.2c3.7-3.4 6-8.4 6-14.5 0-1.3-.1-2.7-.4-4z"/></svg>
+        {loggingIn?"กำลังเข้าสู่ระบบ...":"เข้าสู่ระบบด้วย Google"}
+      </button>
+    </div>
+  </div>;
+
+  // ── Gate 2: signed in, but email doesn't match the client's saved email ──
+  if(denied) return <div style={{minHeight:"100dvh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F0EDE6",fontFamily:"'Kanit',sans-serif",flexDirection:"column",gap:8,padding:"2rem"}}>
+    <div style={{fontSize:32}}>🔒</div>
+    <div style={{fontSize:16,fontWeight:600,color:"#111827",textAlign:"center"}}>อีเมลของคุณไม่ตรงกับลูกค้าในแผนนี้</div>
+    <div style={{fontSize:13,color:"#9CA3AF",textAlign:"center"}}>เข้าสู่ระบบด้วย {viewer?.email} — กรุณาใช้อีเมลที่ Advisor บันทึกไว้ให้คุณ</div>
+    <button onClick={()=>auth.signOut()} style={{fontSize:13,color:"#3B82F6",background:"none",border:"none",cursor:"pointer",fontFamily:"'Kanit',sans-serif",marginTop:8}}>ออกจากระบบ / เปลี่ยนบัญชี</button>
+  </div>;
 
   if(loading) return <div style={{minHeight:"100dvh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F0EDE6",fontFamily:"'Kanit',sans-serif",flexDirection:"column",gap:12}}>
     <div style={{width:36,height:36,border:"3px solid #0D2B4E",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
@@ -1717,6 +1769,8 @@ function ShareViewScreen() {
     <div style={{fontSize:16,fontWeight:600,color:"#111827"}}>{error}</div>
     <div style={{fontSize:13,color:"#9CA3AF",textAlign:"center"}}>กรุณาขอ Link ใหม่จาก Advisor ของคุณ</div>
   </div>;
+
+  if(!D) return null;
 
   const mEq=r=>(r.freq==="yearly"?(r.amt||0)/12:(r.amt||0));
   const ti=(D.income||[]).reduce((s,r)=>s+mEq(r),0);
@@ -2470,6 +2524,7 @@ function App() {
   // ── Copy share URL ──
   const copyShare=()=>{
     if(!shareUrl){alert("กรุณา Save ก่อนแชร์");return;}
+    if(!D.email){alert("กรุณากรอกอีเมลลูกค้าในหน้า 'ข้อมูลลูกค้า' ก่อนแชร์ — ลูกค้าต้อง Login Google ด้วยอีเมลนี้เพื่อดูแผน");return;}
     navigator.clipboard.writeText(shareUrl).then(()=>{setShowShareToast(true);setTimeout(()=>setShowShareToast(false),2500);});
   };
 
