@@ -34,8 +34,9 @@ function useCalcs(D) {
   const liqGoal = D.expense*D.mult;
   const liqGap = Math.max(0,liqGoal-D.saved);
   const liqPct = liqGoal>0?Math.min(100,Math.round(D.saved/liqGoal*100)):0;
-  const protLife = Object.values(D.lifeIns).filter(v=>v>0).length;
-  const protNl = Object.values(D.nonLife).filter(v=>v>0).length;
+  const _eff = effCover(D);
+  const protLife = LIFE_F.filter(f=>_eff[f.k]>0).length;
+  const protNl = NL_F.filter(f=>_eff[f.k]>0).length;
   const protTot = protLife+protNl;
   const ca = calcAge(D.dob)||35;
   const ytr = Math.max(0,(D.retAge||60)-ca);

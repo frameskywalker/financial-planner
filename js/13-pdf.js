@@ -11,8 +11,9 @@ function buildPDF(D) {
     const liqGoal=D.expense*D.mult;
     const liqGap=Math.max(0,liqGoal-D.saved);
     const liqPct=liqGoal>0?Math.min(100,Math.round(D.saved/liqGoal*100)):0;
-    const protLife=Object.values(D.lifeIns).filter(v=>v>0).length;
-    const protNl=Object.values(D.nonLife).filter(v=>v>0).length;
+    const _eff=effCover(D);
+    const protLife=LIFE_F.filter(f=>_eff[f.k]>0).length;
+    const protNl=NL_F.filter(f=>_eff[f.k]>0).length;
     const protTot=protLife+protNl;
     const ca=calcAge(D.dob)||35;
     const ytr=Math.max(0,(D.retAge||60)-ca);
@@ -90,7 +91,8 @@ body{font-family:'Kanit',sans-serif;background:#2A2A2A;padding:2rem;display:flex
 .bf{height:100%;border-radius:3px}
 @media print{body{background:white;padding:0;gap:0}.a4{box-shadow:none;border-radius:0;page-break-after:always;width:210mm;min-height:297mm;padding:16mm 18mm}.a4:last-child{page-break-after:avoid}.pl{display:none}@page{size:A4;margin:0}}`;
 
-  const prot=[[`ทุนประกัน`,D.lifeIns.sum,1e6],[`ค่าห้อง`,D.lifeIns.room,5000],[`ค่ารักษา`,D.lifeIns.treat,3e5],[`โรคร้ายแรง`,D.lifeIns.critical,5e5],[`อุบัติเหตุ`,D.nonLife.acc,2e5],[`ค่าชดเชย`,D.nonLife.comp,1000]];
+  const _effP=effCover(D);
+  const prot=[[`ทุนประกัน`,_effP.sum,1e6],[`ค่าห้อง`,_effP.room,5000],[`ค่ารักษา`,_effP.treat,3e5],[`โรคร้ายแรง`,_effP.critical,5e5],[`อุบัติเหตุ`,_effP.acc,2e5],[`ค่าชดเชย`,_effP.comp,1000]];
   const statusBadge=(ok,warn)=>ok?`<span class="sb ok">สมบูรณ์ · OK</span>`:warn?`<span class="sb wn">ควรเพิ่ม · Review</span>`:`<span class="sb gp">ขาดอีก · Gap</span>`;
   const protBadge=(v,b)=>{const r=(v||0)/b;return r>=0.8?`<span class="sb ok">✓</span>`:r>=0.3?`<span class="sb wn">ควรเพิ่ม</span>`:`<span class="sb gp">ยังไม่มี</span>`;};
   const kpi=(l,v,cls="")=>`<div class="kp"><div class="kl">${l}</div><div class="kv ${cls}">${v}</div></div>`;
